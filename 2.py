@@ -2,8 +2,6 @@ from collections import Counter
 from math import prod
 
 
-
-
 def power(games):
     final_counter = Counter()
     games = games.split(';')
