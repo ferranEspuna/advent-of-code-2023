@@ -33,7 +33,7 @@ def get_ways(s, nums, require_dot=False, tabs=0):
 
 total = 0
 
-with open('input.txt') as f:
+with open('input/input.txt') as f:
     for line in f:
         my_s, my_nums = line.split()
         my_nums = tuple([0] + [int(x) for x in my_nums.split(',')] * 5)

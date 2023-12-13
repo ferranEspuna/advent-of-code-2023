@@ -132,7 +132,7 @@ class multimap:
 
 
 if __name__ == '__main__':
-    with open('input.txt') as f:
+    with open('input/input.txt') as f:
         seed_line = f.readline()
         seeds = [int(x) for x in seed_line.split()[1:]]
         m = multimap.from_string(f.read())
