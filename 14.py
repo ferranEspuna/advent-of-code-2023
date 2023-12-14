@@ -1,4 +1,5 @@
 import numpy as np
+from tqdm import tqdm
 
 
 def move_north(mat):
@@ -58,13 +59,13 @@ def many_cycles(mat, k):
     indices = dict()
     states = list()
 
-    for step in range(k):
+    for step in tqdm(range(k)):
 
         ind = indices.get(mat.data.tobytes())
         if ind is not None:
-            cycle_length = step - ind
-            print(f'found cycle of length {cycle_length} after {ind} steps')
-            return states[ind + (k - ind) % cycle_length]
+            loop_length = step - ind
+            print(f'found loop of length {loop_length} after {ind} steps')
+            return states[ind + (k - ind) % loop_length]
 
         states.append(mat)
         indices[mat.data.tobytes()] = step
