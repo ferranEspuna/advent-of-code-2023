@@ -1,24 +1,52 @@
+import sys
 import numpy as np
-from collections import deque
-from functools import partial
+from collections import deque, defaultdict
+from functools import partial, cache
 from time import perf_counter
 
 from tqdm import tqdm
 
+sys.setrecursionlimit(100000)
 
-def bfs(start, get_next):
-    visited = dict()
-    not_visited = deque()
-    not_visited.append((start, 0))
 
-    while not_visited:
-        current, current_depth = not_visited.popleft()
-        visited[current] = current_depth
-        for n in get_next(current):
-            if n not in visited:
-                not_visited.append((n, current_depth + 1))
+def kosajaru(starts_, get_next):
 
-    return visited
+    inverse_graph = defaultdict(list)
+    visited = set()
+    ass = dict()
+    inv_ass = defaultdict(list)
+    ordered_nodes = []
+
+    def visit(node):
+
+        for n_ in get_next(node):
+            inverse_graph[n_].append(node)
+
+        if node in visited:
+            return
+
+        visited.add(node)
+
+        for n_ in get_next(node):
+            visit(n_)
+
+        ordered_nodes.append(node)
+
+    for start_ in starts_:
+        visit(start_)
+
+    def assign(node, root):
+        if node in ass:
+            return
+        ass[node] = root
+        inv_ass[root].append(node)
+        for _n in inverse_graph[node]:
+            assign(_n, root)
+
+    for node_ in reversed(ordered_nodes):
+        assign(node_, node_)
+
+    return ass, inv_ass, ordered_nodes
 
 
 def get_next_dirs_maze(state, maze):
@@ -61,6 +89,8 @@ def get_next_states_maze(state, maze):
 
 
 if __name__ == "__main__":
+
+    print('reading chars')
     with open('input/input.txt') as f:
         chars = np.array([
             [x for x in line.strip()]
@@ -69,38 +99,57 @@ if __name__ == "__main__":
 
     n, m = chars.shape
 
+    print('setting up')
     max_neighbors = float('-inf')
     get_next_state_chars = partial(get_next_states_maze, maze=chars)
 
     t0 = perf_counter()
 
-    for i in tqdm(range(n)):
+    starts = []
 
-        start_state = ((i, 0), (0, 1))
+    for i in range(n):
+        starts.append(
+            ((i, 0), (0, 1))
+        )
 
-        visited_states = bfs(start_state, get_next_state_chars)
-        visited_positions = set(pos for pos, _ in visited_states.keys())
-        l = len(visited_positions)
-        max_neighbors = max(max_neighbors, l)
+        starts.append(
+            ((i, m - 1), (0, -1))
+        )
 
-        start_state = ((i, m - 1), (0, -1))
-        visited_states = bfs(start_state, get_next_state_chars)
-        visited_positions = set(pos for pos, _ in visited_states.keys())
-        l = len(visited_positions)
-        max_neighbors = max(max_neighbors, l)
+    for j in range(m):
+        starts.append(((0, j), (1, 0)))
+        starts.append(((n - 1, j), (-1, 0)))
 
-    for j in tqdm(range(m)):
-        start_state = ((0, j), (1, 0))
-        visited_states = bfs(start_state, get_next_state_chars)
-        visited_positions = set(pos for pos, _ in visited_states.keys())
-        l = len(visited_positions)
-        max_neighbors = max(max_neighbors, l)
+    print('running kosajaru')
+    assigned, inv_assigned, inv_graph = kosajaru(starts, get_next_state_chars)
 
-        start_state = ((n - 1, j), (-1, 0))
-        visited_states = bfs(start_state, get_next_state_chars)
-        visited_positions = set(pos for pos, _ in visited_states.keys())
-        l = len(visited_positions)
-        max_neighbors = max(max_neighbors, l)
+    print(len(inv_assigned))
+
+
+    @cache
+    def find_all_neighbors(root):
+        return {assigned[child] for rep in inv_assigned[root] for child in get_next_state_chars(rep)}
+
+
+    @cache
+    def find_all_children(root):
+
+        children = find_all_neighbors(root)
+
+        if root in children:
+            children.remove(root)
+
+        return {root} | set(assigned[x] for child in children for x in find_all_children(child))
+
+
+    for start in tqdm(starts):
+        my_children = find_all_children(assigned[start])
+
+        all_representatives = set(
+
+            x[0] for child in my_children for x in inv_assigned[child]
+        )
+        max_neighbors = max(max_neighbors, len(all_representatives))
 
     t1 = perf_counter()
     print(t1 - t0)
