@@ -90,7 +90,6 @@ def get_next_states_maze(state, maze):
 
 if __name__ == "__main__":
 
-    print('reading chars')
     with open('input/input.txt') as f:
         chars = np.array([
             [x for x in line.strip()]
@@ -99,7 +98,6 @@ if __name__ == "__main__":
 
     n, m = chars.shape
 
-    print('setting up')
     max_neighbors = float('-inf')
     get_next_state_chars = partial(get_next_states_maze, maze=chars)
 
@@ -125,11 +123,9 @@ if __name__ == "__main__":
 
     print(len(inv_assigned))
 
-
     @cache
     def find_all_neighbors(root):
         return {assigned[child] for rep in inv_assigned[root] for child in get_next_state_chars(rep)}
-
 
     @cache
     def find_all_children(root):
