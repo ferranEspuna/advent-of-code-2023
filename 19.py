@@ -1,63 +1,107 @@
 from functools import partial
+from copy import copy
+from math import prod
 
-def greater(d_, property, num, result):
-    return result if d_[property] > num else None
 
-def smaller(d_, property, num, result):
-    return result if d_[property] < num else None
+def is_valid(rng):
+    return rng[0] < rng[1]
+
+
+def greater(d_, property_, num, result):
+    rng_start, rng_end = d_[property_]
+
+    accept_rng = (num + 1, rng_end)
+    reject_rng = (rng_start, num + 1)
+
+    if is_valid(accept_rng):
+        d_accept = copy(d_)
+        d_accept[property_] = accept_rng
+
+    else:
+        d_accept = None
+
+    if is_valid(reject_rng):
+        d_reject = copy(d_)
+        d_reject[property_] = reject_rng
+    else:
+        d_reject = None
+
+    return (d_accept, result), d_reject
+
+
+def smaller(d_, property_, num, result):
+    rng_start, rng_end = d_[property_]
+
+    accept_rng = (rng_start, num)
+    reject_rng = (num, rng_end)
+
+    if is_valid(accept_rng):
+        d_accept = copy(d_)
+        d_accept[property_] = accept_rng
+
+    else:
+        d_accept = None
+
+    if is_valid(reject_rng):
+        d_reject = copy(d_)
+        d_reject[property_] = reject_rng
+    else:
+        d_reject = None
+
+    return (d_accept, result), d_reject
+
 
 def parse_workflow(line):
-    name, end = line.split('{')
+    name_, end = line.split('{')
     end = end[:-1]
     pieces = end.split(',')
-    #print()
-    #print(name)
 
     functions = []
 
     for piece in pieces[:-1]:
-        #print(piece)
 
         piece_x, piece_y = piece.split(':')
 
         if '<' in piece_x:
             first, second = piece_x.split('<')
-            functions.append(partial(smaller, property=first, num=int(second), result=piece_y))
+            functions.append(partial(smaller, property_=first, num=int(second), result=piece_y))
 
         else:
             assert '>' in piece_x
             first, second = piece_x.split('>')
-            functions.append(partial(greater, property=first, num=int(second), result=piece_y))
+            functions.append(partial(greater, property_=first, num=int(second), result=piece_y))
 
     functions.append(
-        lambda d: pieces[-1]
+        lambda d: ((d, pieces[-1]), None)
     )
 
     def big_function(d):
-        for f in functions:
-            out = f(d)
-            if out is not None:
-                return out
+
+        done = []
+
+        for f_ in functions:
+            (d_accept, result), d_reject = f_(d)
+            if d_accept is not None:
+                done.append((d_accept, result))
+            if d_reject is None:
+                return done
+            d = d_reject
 
         assert False
 
-    return name, big_function
+    return name_, big_function
 
 
-def parse_object(line):
-    attributes = line[1:-1].split(',')
-    obj = {}
-    for at in attributes:
-        a, b = at.split('=')
-        obj[a] = int(b)
+def count_combos(d):
+    if not d:
+        return 0
 
-    return obj
+    return prod(rng[1] - rng[0] for rng in d.values())
 
 
 if __name__ == "__main__":
 
     workflows = {}
-    accepted = []
 
     with (open('input/input.txt') as f):
         for line_ in f:
@@ -65,32 +109,30 @@ if __name__ == "__main__":
             line_ = line_.strip()
             if not line_:
                 break
-
             name, func = parse_workflow(line_)
             workflows[name] = func
 
-        for line_ in f:
 
-            line_ = line_.strip()
+    def get_all_ds(ds):
 
-            obj = parse_object(line_)
-            work_name = 'in'
-            #print(obj)
+        if not ds:
+            return
 
-            while True:
+        for d, func_name in ds:
 
-                #print(work_name)
-                work = workflows[work_name]
-                work_name = work(obj)
-                if work_name not in workflows:
-                    if work_name == 'A':
-                        accepted.append(obj)
-                        break
-                    else:
-                        assert work_name == 'R'
-                        break
+            if func_name == 'A':
+                yield d
+                continue
 
-                work = workflows[work_name]
-            #print()
+            if func_name == 'R':
+                continue
 
-    print(sum(sum(obj.values()) for obj in accepted))
+            current_func = workflows[func_name]
+            yield from get_all_ds(current_func(d))
+
+
+    print(
+        sum(map(count_combos, get_all_ds(
+            [({'x': (1, 4001), 'm': (1, 4001), 'a': (1, 4001), 's': (1, 4001)}, 'in')]
+        )))
+    )
